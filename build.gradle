@@ -1,0 +1,66 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'distribution'
+}
+
+group = 'org.pcap4j'
+version = '1.8.3-SNAPSHOT'
+
+allprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'distribution'
+
+    repositories {
+        mavenLocal()
+        maven {
+            url = uri('https://repo.maven.apache.org/maven2/')
+        }
+    }
+
+    dependencies {
+        implementation 'org.slf4j:slf4j-api:2.0.11'
+
+        testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
+    }
+
+    tasks.withType(JavaCompile) {
+        options.release = 11
+        options.encoding = 'UTF-8'
+    }
+
+    tasks.withType(Javadoc) {
+        options.encoding = 'UTF-8'
+    }
+
+    test {
+        systemProperty 'spring.profiles.active', 'test'
+        systemProperty 'locale', 'en_Us'
+        systemProperty 'user.language', 'en'
+        useJUnitPlatform()
+        maxParallelForks = 1
+        ignoreFailures = true
+
+        testLogging {
+            events "passed"
+        }
+    }
+}
+
+dependencies {
+    implementation project(':pcap4j-core')
+    implementation project(':pcap4j-packetfactory-static')
+    implementation project(':pcap4j-packetfactory-propertiesbased')
+    implementation project(':pcap4j-packettest')
+    implementation project(':pcap4j-sample')
+
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from(components.java)
+        }
+    }
+}
