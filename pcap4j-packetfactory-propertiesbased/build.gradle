@@ -1,0 +1,9 @@
+dependencies {
+    api project(':pcap4j-core')
+
+    compileOnly 'net.java.dev.jna:jna:5.14.0'
+
+    testImplementation project(':pcap4j-packettest')
+}
+
+description = 'Pcap4J Properties-Based Packet Factory'

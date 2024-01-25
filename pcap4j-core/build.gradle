@@ -1,0 +1,6 @@
+group = "org.pcap4j.core"
+description = 'Pcap4J Core'
+
+dependencies {
+    implementation 'net.java.dev.jna:jna:5.14.0'
+}
