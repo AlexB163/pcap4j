@@ -1447,6 +1447,8 @@ public final class PcapHandle implements Closeable {
             final int len = pcap_pkthdr.getLen(header);
             final int caplen = pcap_pkthdr.getCaplen(header);
             final ByteBuffer buffer = packet.getByteBuffer(0, caplen);
+            final ByteBuffer copy = ByteBuffer.allocateDirect(buffer.capacity());
+            copy.put(buffer);
 
             try {
                 executor.execute(
@@ -1455,7 +1457,7 @@ public final class PcapHandle implements Closeable {
                             public void run() {
                                 timestamps.set(ts);
                                 originalLengths.set(len);
-                                listener.gotPacket(buffer);
+                                listener.gotPacket(copy);
                             }
                         });
             } catch (Throwable e) {
