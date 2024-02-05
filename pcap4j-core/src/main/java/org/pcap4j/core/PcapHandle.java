@@ -840,7 +840,26 @@ public final class PcapHandle implements Closeable {
      */
     public void loop(int packetCount, NioRawPacketListener listener)
             throws PcapNativeException, InterruptedException, NotOpenException {
-        loop(packetCount, listener, SimpleExecutor.getInstance());
+        loop(packetCount, listener, AlwaysNewByteBufferPool.getInstance(), SimpleExecutor.getInstance());
+    }
+
+    /**
+     * A wrapper method for <code>int pcap_loop(pcap_t *, int, pcap_handler, u_char *)</code>. When a
+     * packet is captured, <code>listener.gotPacket(ByteBuffer)</code> is called in the thread which
+     * called the <code>loop()</code>. And then this PcapHandle waits for the thread to return from
+     * the <code>gotPacket()</code> before it retrieves the next packet from the pcap buffer.
+     *
+     * @param packetCount the number of packets to capture. -1 is equivalent to infinity. 0 may result
+     *                    in different behaviors between platforms and pcap library versions.
+     * @param listener    listener
+     * @param pool        pool
+     * @throws PcapNativeException  if an error occurs in the pcap native library.
+     * @throws InterruptedException if the loop terminated due to a call to {@link #breakLoop()}.
+     * @throws NotOpenException     if this PcapHandle is not open.
+     */
+    public void loop(int packetCount, NioRawPacketListener listener, NioRawPacketPool pool)
+            throws PcapNativeException, InterruptedException, NotOpenException {
+        loop(packetCount, listener, pool, SimpleExecutor.getInstance());
     }
 
     /**
@@ -855,12 +874,13 @@ public final class PcapHandle implements Closeable {
      * @param packetCount the number of packets to capture. -1 is equivalent to infinity. 0 may result
      *                    in different behaviors between platforms and pcap library versions.
      * @param listener    listener
+     * @param pool        pool
      * @param executor    executor
      * @throws PcapNativeException  if an error occurs in the pcap native library.
      * @throws InterruptedException if the loop terminated due to a call to {@link #breakLoop()}.
      * @throws NotOpenException     if this PcapHandle is not open.
      */
-    public void loop(int packetCount, NioRawPacketListener listener, Executor executor)
+    public void loop(int packetCount, NioRawPacketListener listener, NioRawPacketPool pool, Executor executor)
             throws PcapNativeException, InterruptedException, NotOpenException {
         if (listener == null || executor == null) {
             StringBuilder sb = new StringBuilder();
@@ -868,7 +888,7 @@ public final class PcapHandle implements Closeable {
             throw new NullPointerException(sb.toString());
         }
 
-        doLoop(packetCount, new GotNioRawPacketFuncExecutor(listener, executor));
+        doLoop(packetCount, new GotNioRawPacketFuncExecutor(listener, pool, executor));
     }
 
     private void doLoop(int packetCount, NativeMappings.pcap_handler handler)
@@ -1434,10 +1454,12 @@ public final class PcapHandle implements Closeable {
     private final class GotNioRawPacketFuncExecutor implements NativeMappings.pcap_handler {
 
         private final NioRawPacketListener listener;
+        private final NioRawPacketPool nioRawPacketPool;
         private final Executor executor;
 
-        public GotNioRawPacketFuncExecutor(NioRawPacketListener listener, Executor executor) {
+        public GotNioRawPacketFuncExecutor(NioRawPacketListener listener, NioRawPacketPool nioRawPacketPool, Executor executor) {
             this.listener = listener;
+            this.nioRawPacketPool = nioRawPacketPool;
             this.executor = executor;
         }
 
@@ -1447,7 +1469,7 @@ public final class PcapHandle implements Closeable {
             final int len = pcap_pkthdr.getLen(header);
             final int caplen = pcap_pkthdr.getCaplen(header);
             final ByteBuffer buffer = packet.getByteBuffer(0, caplen);
-            final ByteBuffer copy = ByteBuffer.allocateDirect(buffer.capacity());
+            final ByteBuffer copy = nioRawPacketPool.borrow(caplen);
             copy.put(buffer);
 
             try {

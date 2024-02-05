@@ -11,8 +11,7 @@ module org.pcap4j.core {
 
   requires java.sql;
   requires java.base;
-
-  requires transitive com.sun.jna;
+  requires com.sun.jna;
   requires transitive org.slf4j;
 
   uses org.pcap4j.packet.factory.PacketFactoryBinderProvider;
